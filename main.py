@@ -16,12 +16,14 @@ def loadproject():
         if(initial == 'N'):
             break
         else:
-            getOnePicture()
-            imageToGray()
+            #getOnePicture()
+            #imageToGray()
+            #exponentiation()
             # grayToSmaller()
             # canny()
-            binaryToStandard()
-            grayToBinary()
+            imgToCanny()
+            #binaryToStandard()
+            #grayToBinary()
 
             # trainData, labelVec, testData, testLabelVec = dataSetClassfication()
             # precisionRateTest(trainData, labelVec, testData, testLabelVec)
@@ -42,12 +44,12 @@ def getOnePicture():
     success, frame = cameraCapture.read()   # 判断是否取得了有效值   frame应该是某一帧
     numFramesRemaining = 10
     while success and numFramesRemaining > 0:
-        cv2.imwrite('C:/Users/18139/Desktop/getcamera/picture1.jpg', frame)
+        cv2.imwrite('C:/Users/18139/Desktop/getcamera/initPicture.jpg', frame)
         videoWriter.write(frame)           # 将读取到的帧写入视频
         success, frame = cameraCapture.read()
         numFramesRemaining -= 1
     cameraCapture.release()
-    img1 = cv2.imread('C:/Users/18139/Desktop/getcamera/picture1.jpg')          # 需要改图片
+    img1 = cv2.imread('C:/Users/18139/Desktop/getcamera/initPicture.jpg')          # 需要改图片
     cv2.namedWindow("Image")  # 可加可不加，加上的话一般和imshow之间会定义一些窗口事件处理用函数
     cv2.imshow('Image', img1)  # 显示图片
     if cv2.waitKey(1000) == 27 :
@@ -58,8 +60,8 @@ def getOnePicture():
 # input：yourImage 从视频流中截取的图片
 # output：txt 处理后的灰度化图片
 def imageToGray():
-    img2 = Image.open('C:/Users/18139/Desktop/getcamera/picture1.jpg').convert("L")
-    img2.save('C:/Users/18139/Desktop/getcamera/picture2.bmp')
+    img2 = Image.open('C:/Users/18139/Desktop/getcamera/initPicture.jpg').convert("L")
+    img2.save('C:/Users/18139/Desktop/getcamera/grayPicture.bmp')
     img2.show()
     img_array = np.array(img2)
     w, h = img_array.shape
@@ -73,139 +75,40 @@ def imageToGray():
 # input: 灰度化图片
 # output：降低后像素的图片
 def grayToSmaller():
-    image2 = Image.open('C:/Users/18139/Desktop/getcamera/picture2.bmp')
+    image2 = Image.open('C:/Users/18139/Desktop/getcamera/grayPicture.bmp')
     img_array = np.array(image2)
     a = img_array.shape
     img_array2 = cv2.resize(img_array, (int(a[1] / 1.5), int(a[0] / 1.5)), interpolation=cv2.INTER_AREA)  # 可更改数据调整
     image3 = Image.fromarray(img_array2)
     image3.save('C:/Users/18139/Desktop/getcamera/picture3.bmp')
-    image3.show()
+
 
 # 数字图像处理3 利用canny算子实现边缘检测    高斯滤波  计算梯度值与方向   非极大值抑制（NMS） 双阀值选取（这样精度更高）边缘连接    **************
 # input: 降低像素后的图片
 # output：边缘检测后的图片
-def canny():
-    img = plt.imread('C:/Users/18139/Desktop/getcamera/picture3.bmp')
-
-    sigma1 = sigma2 = 1
-    sum = 0
-
-    gaussian = np.zeros([5, 5])
-    for i in range(5):
-        for j in range(5):
-            gaussian[i, j] = math.exp(-1 / 2 * (np.square(i - 3) / np.square(sigma1)  # 生成二维高斯分布矩阵
-                                                + (np.square(j - 3) / np.square(sigma2)))) / (
-                                         2 * math.pi * sigma1 * sigma2)
-            sum = sum + gaussian[i, j]
-
-    gaussian = gaussian / sum
-
-    # print(gaussian)
-
-    def rgb2gray(rgb):
-        return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
-
-    # step1.高斯滤波
-    gray = rgb2gray(img)
-    W, H = gray.shape
-    new_gray = np.zeros([W - 5, H - 5])
-    for i in range(W - 5):
-        for j in range(H - 5):
-            new_gray[i, j] = np.sum(gray[i:i + 5, j:j + 5] * gaussian)  # 与高斯矩阵卷积实现滤波
-
-    # plt.imshow(new_gray, cmap="gray")
-
-    # step2.增强 通过求梯度幅值
-    W1, H1 = new_gray.shape
-    dx = np.zeros([W1 - 1, H1 - 1])
-    dy = np.zeros([W1 - 1, H1 - 1])
-    d = np.zeros([W1 - 1, H1 - 1])
-    for i in range(W1 - 1):
-        for j in range(H1 - 1):
-            dx[i, j] = new_gray[i, j + 1] - new_gray[i, j]
-            dy[i, j] = new_gray[i + 1, j] - new_gray[i, j]
-            d[i, j] = np.sqrt(np.square(dx[i, j]) + np.square(dy[i, j]))  # 图像梯度幅值作为图像强度值
-
-    # plt.imshow(d, cmap="gray")
-
-    # setp3.非极大值抑制 NMS
-    W2, H2 = d.shape
-    NMS = np.copy(d)
-    NMS[0, :] = NMS[W2 - 1, :] = NMS[:, 0] = NMS[:, H2 - 1] = 0
-    for i in range(1, W2 - 1):
-        for j in range(1, H2 - 1):
-
-            if d[i, j] == 0:
-                NMS[i, j] = 0
-            else:
-                gradX = dx[i, j]
-                gradY = dy[i, j]
-                gradTemp = d[i, j]
-
-                # 如果Y方向幅度值较大
-                if np.abs(gradY) > np.abs(gradX):
-                    weight = np.abs(gradX) / np.abs(gradY)
-                    grad2 = d[i - 1, j]
-                    grad4 = d[i + 1, j]
-                    # 如果x,y方向梯度符号相同
-                    if gradX * gradY > 0:
-                        grad1 = d[i - 1, j - 1]
-                        grad3 = d[i + 1, j + 1]
-                    # 如果x,y方向梯度符号相反
-                    else:
-                        grad1 = d[i - 1, j + 1]
-                        grad3 = d[i + 1, j - 1]
-
-                # 如果X方向幅度值较大
-                else:
-                    weight = np.abs(gradY) / np.abs(gradX)
-                    grad2 = d[i, j - 1]
-                    grad4 = d[i, j + 1]
-                    # 如果x,y方向梯度符号相同
-                    if gradX * gradY > 0:
-                        grad1 = d[i + 1, j - 1]
-                        grad3 = d[i - 1, j + 1]
-                    # 如果x,y方向梯度符号相反
-                    else:
-                        grad1 = d[i - 1, j - 1]
-                        grad3 = d[i + 1, j + 1]
-
-                gradTemp1 = weight * grad1 + (1 - weight) * grad2
-                gradTemp2 = weight * grad3 + (1 - weight) * grad4
-                if gradTemp >= gradTemp1 and gradTemp >= gradTemp2:
-                    NMS[i, j] = gradTemp
-                else:
-                    NMS[i, j] = 0
-
-    # plt.imshow(NMS, cmap = "gray")
-
-    # step4. 双阈值算法检测、连接边缘
-    W3, H3 = NMS.shape
-    DT = np.zeros([W3, H3])
-    # 定义高低阈值
-    TL = 0.2 * np.max(NMS)
-    TH = 0.3 * np.max(NMS)
-    for i in range(1, W3 - 1):
-        for j in range(1, H3 - 1):
-            if (NMS[i, j] < TL):
-                DT[i, j] = 0
-            elif (NMS[i, j] > TH):
-                DT[i, j] = 1
-            elif ((NMS[i - 1, j - 1:j + 1] < TH).any() or (NMS[i + 1, j - 1:j + 1]).any()
-                  or (NMS[i, [j - 1, j + 1]] < TH).any()):
-                DT[i, j] = 1
-
-    plt.imshow(DT, cmap="gray")
+def imgToCanny():
+    image = Image.open('C:/Users/18139/Desktop/getcamera/grayPicture.bmp')
+    img_array = np.array(image)
+    c = 1
+    r = 2
+    a = c * ((img_array / 255) ** r * 255)
+    # image2 = Image.fromarray(a.astype(np.int))
+    # image = Image.open('C:/Users/18139/Desktop/getcamera/grayPicture.bmp')
+    # img_array = np.array(image)
+    img_array2 = cv2.Canny(a, 50, 150)
+    image2 = Image.fromarray(img_array2)
+    image2.save('C:/Users/18139/Desktop/getcamera/cannyPicture.bmp')
+    image2.show()
 
 # 数字图像处理4 A4纸矫正                    **********
 # input：顶点提取后的图片
-# output：矫正后的图片
+# output：矫正后的图片Y
 
 # 数字图像处理5 插值法将图像化为标准大小    (需要注意的是，插值法会将二值化图片变成非二值化，要在二值化之前进行）
 # input：单个图片
 # output：标准图并储存
 def binaryToStandard():
-    image4 = Image.open('C:/Users/18139/Desktop/getcamera/picture2.bmp')
+    image4 = Image.open('C:/Users/18139/Desktop/getcamera/grayPicture.bmp')
     img_array = np.array(image4)
     a = img_array.shape
     b = a[0]/32
@@ -216,14 +119,13 @@ def binaryToStandard():
         fp.write(str(i))
     fp.close()
     image5 = Image.fromarray(img_array2)
-    image5.save('C:/Users/18139/Desktop/getcamera/picture3.bmp')
-    image5.show()
+    image5.save('C:/Users/18139/Desktop/getcamera/standSizePicture.bmp')
 
 # 数字图像处理6  图像二值化   全阈值（这个简单）
 # input：提取后的图像
 # output； 二值化图片
 def grayToBinary():
-    image3 = Image.open('C:/Users/18139/Desktop/getcamera/picture3.bmp')
+    image3 = Image.open('C:/Users/18139/Desktop/getcamera/standSizePicture.bmp')
     img_array = np.array(image3)
     img_array2 = img_array
     for i in range(img_array.shape[0]-1):
@@ -237,8 +139,7 @@ def grayToBinary():
         fp.write(str(i))
     fp.close()
     image4 = Image.fromarray(img_array2)
-    image4.save('C:/Users/18139/Desktop/getcamera/picture4.bmp')
-    image4.show()
+    image4.save('C:/Users/18139/Desktop/getcamera/binaryPicture.bmp')
 
 # 数字图像处理7  垂直方向分割后水平方向分割（统计方面）      ***
 # input：二值化的灰度图
